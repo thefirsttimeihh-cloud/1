@@ -3,197 +3,306 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>感情に合わせて背景が変わるボタン</title>
+    <title>超・感情が変わるボタン</title>
     <style>
-        /* 画面全体のスタイル */
+        /* ================= 画面全体の基本スタイル ================= */
         body {
-            margin: 0;
-            padding: 0;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            /* 初期背景色（元の水色） */
-            background-color: #2cece6;
-            transition: background-color 0.4s ease; /* 背景色の変化を滑らかに */
-            overflow: hidden;
-            font-family: sans-serif;
-            position: relative;
+            margin: 0; padding: 0; height: 100vh; overflow: hidden;
+            display: flex; justify-content: center; align-items: center;
+            background-color: #2cece6; transition: background-color 0.5s ease;
+            font-family: sans-serif; position: relative;
         }
 
-        /* 中央の顔文字ボタン */
+        /* 画面揺れ・背景アニメーション */
+        .shake-slow { animation: shake-slow 3s infinite ease-in-out; }
+        .shake-fast { animation: shake-fast 0.2s infinite; }
+        .pachinko-shake { animation: shake-pachinko 0.05s infinite; }
+        .rainbow-bg { animation: rainbow 1s infinite linear; }
+
+        @keyframes shake-slow { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(10px, 10px); } 50% { transform: translate(-10px, -5px); } 75% { transform: translate(-5px, 15px); } }
+        @keyframes shake-fast { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(3px, 3px); } 50% { transform: translate(-3px, -3px); } 75% { transform: translate(3px, -3px); } }
+        @keyframes shake-pachinko { 0% { transform: translate(0, 0); } 25% { transform: translate(8px, -8px); } 50% { transform: translate(-8px, 8px); } 75% { transform: translate(8px, 8px); } 100% { transform: translate(-8px, -8px); } }
+        @keyframes rainbow { 0% { background-color: #ff0000; } 20% { background-color: #ffff00; } 40% { background-color: #00ff00; } 60% { background-color: #00ffff; } 80% { background-color: #0000ff; } 100% { background-color: #ff00ff; } }
+
+        /* ================= ボタンのスタイル ================= */
+        /* クリックのへこみを維持しつつ、ノリノリの動きを足すための外枠 */
+        #btn-wrapper { z-index: 100; position: relative; }
+        .groove { animation: groove 0.3s infinite alternate ease-in-out; }
+        @keyframes groove { 0% { transform: scale(1) rotate(-15deg); } 100% { transform: scale(1.4) rotate(15deg); } }
+
         .emoji-btn {
-            font-size: 5rem;
-            background: none;
-            border: none;
-            cursor: pointer;
-            outline: none;
-            user-select: none;
-            position: relative;
-            z-index: 20; /* 最前面に配置 */
-            padding: 10px;
-            
-            /* 初期状態のボタンのような縁取りと影（静止時） */
-            border-radius: 50%;
-            box-shadow: 0 5px 0 #bb9300, 0 10px 20px rgba(0,0,0,0.3);
-            background-color: rgba(255, 255, 255, 0.1);
-            transition: transform 0.1s ease, box-shadow 0.1s ease;
+            font-size: 6rem; background: none; border: none; cursor: pointer;
+            outline: none; user-select: none; transition: transform 0.1s ease;
         }
+        .emoji-btn:active { transform: scale(0.85); } /* ←最高なクリックの動きをキープ */
 
-        /* 顔文字自体のスタイル（絵文字を中央に） */
-        .emoji-btn .emoji {
-            display: inline-block;
-            transform: translateY(0px); /* 初期位置 */
-        }
+        /* ================= 演出用エフェクトのスタイル ================= */
+        #effects-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; overflow: hidden; }
+        
+        /* 汎用パーティクル（花火、紙吹雪など） */
+        .particle { position: absolute; font-size: 2rem; animation: explode 0.8s ease-out forwards; }
+        @keyframes explode { 0% { transform: translate(-50%, -50%) translate(0, 0) scale(1); opacity: 1; } 100% { transform: translate(-50%, -50%) translate(var(--x), var(--y)) scale(1.5); opacity: 0; } }
 
-        /* ボタンを押したときの表現 */
-        .emoji-btn:active {
-            transform: translateY(5px); /* 全体が沈む */
-            box-shadow: 0 1px 0 #bb9300, 0 3px 10px rgba(0,0,0,0.2); /* 影が小さくなる */
-        }
-        .emoji-btn:active .emoji {
-            transform: translateY(3px); /* 絵文字自体の位置も微調整 */
-        }
+        /* ゆらゆら・フェードイン（お化け、はてななど） */
+        .sway { position: absolute; opacity: 0; animation: fadeIn 1s forwards, sway 3s infinite alternate ease-in-out; }
+        @keyframes fadeIn { to { opacity: 1; } }
+        @keyframes sway { 0% { transform: translateY(0px) rotate(-5deg); } 100% { transform: translateY(-20px) rotate(5deg); } }
 
-        /* === 背景エフェクト（花火、雨） === */
+        /* 降ってくる系（雨、ハート） */
+        .fall { position: absolute; top: -50px; animation: fall linear forwards; }
+        @keyframes fall { to { transform: translateY(110vh); opacity: 0; } }
 
-        /* 花火エフェクト（絵文字）のスタイル */
-        .firework-particle {
-            position: absolute;
-            font-size: 2.5rem;
-            pointer-events: none;
-            z-index: 5;
-            animation: explode 0.8s ease-out forwards;
-        }
+        /* 落石専用（回転しながら落ちる） */
+        .fall-rock { position: absolute; top: -100px; animation: fallRock linear forwards; }
+        @keyframes fallRock { 0% { transform: translateY(0) rotate(0deg); opacity: 1; } 100% { transform: translateY(120vh) rotate(360deg); opacity: 0; } }
 
-        /* 花火が四方八方に飛び散って消えるアニメーション */
-        @keyframes explode {
-            0% {
-                transform: translate(-50%, -50%) translate(0, 0) scale(1);
-                opacity: 1;
-            }
-            100% {
-                transform: translate(-50%, -50%) translate(var(--x), var(--y)) scale(1.5);
-                opacity: 0;
-            }
-        }
+        /* ふわふわ浮かぶ系（本、メガネ、お金） */
+        .float { position: absolute; animation: floatAnim 4s infinite alternate ease-in-out; }
+        @keyframes floatAnim { 0% { transform: translate(0, 0); } 100% { transform: translate(20px, -20px); } }
 
-        /* 雨エフェクトのスタイル */
-        .rain-particle {
-            position: absolute;
-            font-size: 1.5rem;
-            pointer-events: none;
-            z-index: 5;
-            animation: fall 1s linear forwards;
-        }
+        /* 巨大な炎 */
+        .flame { position: absolute; bottom: -60px; font-size: 15rem; animation: fireUp 0.8s infinite alternate ease-in-out; transform-origin: bottom center; }
+        @keyframes fireUp { 0% { transform: translateY(0) scale(1) rotate(-5deg); opacity: 0.8; } 100% { transform: translateY(-40px) scale(1.3) rotate(5deg); opacity: 1; } }
 
-        /* 雨が上から下に降って消えるアニメーション */
-        @keyframes fall {
-            0% {
-                transform: translate(-50%, -100%) scale(1);
-                opacity: 0;
-            }
-            10% {
-                opacity: 1;
-            }
-            100% {
-                transform: translate(-50%, 100vh) scale(0.8);
-                opacity: 0;
-            }
-        }
-
+        /* ミラーボール */
+        .disco-ball { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); font-size: 8rem; animation: disco 0.5s infinite alternate; }
+        @keyframes disco { 0% { transform: translateX(-50%) rotate(-10deg) scale(1); } 100% { transform: translateX(-50%) rotate(10deg) scale(1.1); } }
+        
+        /* バウンドする顔 */
+        .bouncing-face { position: absolute; font-size: 4rem; text-shadow: 0 0 10px rgba(0,0,0,0.5); }
     </style>
 </head>
 <body>
-
-    <button id="emojiBtn" class="emoji-btn">
-        <span class="emoji">☺️</span>
-    </button>
+    <div id="effects-layer"></div>
+    
+    <div id="btn-wrapper">
+        <button id="emojiBtn" class="emoji-btn">☺️</button>
+    </div>
 
     <script>
+        const btnWrapper = document.getElementById('btn-wrapper');
         const btn = document.getElementById('emojiBtn');
-        const emojiSpan = btn.querySelector('.emoji');
-        
-        /* 表情ごとの背景エフェクトを定義 */
-        const states = [
-            { bg: '#2cece6', emoji: '☺️', effect: 'fireworks' }, // 初期：水色、微笑み、花火
-            { bg: '#ff3333', emoji: '🥳', effect: 'fireworks' }, // 祝賀：赤、お祝い、花火
-            { bg: '#556688', emoji: '😭', effect: 'rain' },     // 泣く：灰色、泣、雨
-            { bg: '#ffeeaa', emoji: '😎', effect: 'none' }     // おまけ：黄、サングラス、なし
+        const effectsLayer = document.getElementById('effects-layer');
+        let activeTimers = [];
+        let activeAnimFrame = null;
+
+        // 状態（感情と演出）の定義リスト
+        const emotions = [
+            { chars: ['😱'], bg: '#1a1a1a', effect: effectGhost },
+            { chars: ['🤔'], bg: '#87ceeb', effect: effectThinking },
+            { chars: ['🤪', '😜'], bg: '#ffeb3b', effect: effectBouncing },
+            { chars: ['🥰', '😘', '😍', '😳'], bg: '#ffb6c1', effect: effectHearts },
+            { chars: ['😂', '🤣'], bg: '#ffcc00', effect: effectConfetti },
+            { chars: ['🤓', '🧐'], bg: '#e0f7fa', effect: effectNerd },
+            { chars: ['😡', '🤬', '🥵', '😠'], bg: '#8b0000', effect: effectAngry },
+            { chars: ['😣', '😖', '😫', '🫨'], bg: '#9e9e9e', effect: effectDistressed },
+            { chars: ['🙄', '🤫'], bg: '#dcedc8', effect: effectMoney },
+            { chars: ['🥳'], bg: '#ff9800', effect: effectParty },
+            { chars: ['😭'], bg: '#4f6987', effect: effectRain },
+            { chars: ['😎'], bg: '#000000', effect: effectPachinko }
         ];
-        
-        let currentStateIndex = 0;
 
+        let currentStateIndex = -1;
+
+        // ボタンクリック時の処理
         btn.addEventListener('click', (e) => {
-            // 1. 次の状態へ進める
-            currentStateIndex = (currentStateIndex + 1) % states.length;
-            const currentState = states[currentStateIndex];
-            
-            // 2. 背景色とボタンの絵文字を更新
-            document.body.style.backgroundColor = currentState.bg;
-            emojiSpan.textContent = currentState.emoji;
+            clearEffects(); // 前の演出をすべてリセット
+            createFireworks(e.clientX, e.clientY, ['🎆', '✨', '🎇', '💥']); // クリック位置の花火
 
-            // 3. クリックした位置から対応するエフェクトを生成
-            if (currentState.effect === 'fireworks') {
-                createFireworks(e.clientX, e.clientY);
-            } else if (currentState.effect === 'rain') {
-                createRain(e.clientX, e.clientY);
+            // ランダムに次の感情を選ぶ（同じものは連続しない）
+            let nextIndex = currentStateIndex;
+            while (nextIndex === currentStateIndex) {
+                nextIndex = Math.floor(Math.random() * emotions.length);
             }
+            currentStateIndex = nextIndex;
+            const state = emotions[currentStateIndex];
+
+            // 背景色と顔文字を設定
+            document.body.style.backgroundColor = state.bg;
+            document.body.className = ''; // クラスリセット
+            const randomFace = state.chars[Math.floor(Math.random() * state.chars.length)];
+            btn.textContent = randomFace;
+
+            // 固有の演出を発動
+            if (state.effect) state.effect(randomFace);
         });
 
-        // 花火エフェクトを生成する関数
-        function createFireworks(startX, startY) {
-            const particles = ['🎆', '✨', '🎇', '💥', '🎉'];
-            const particleCount = 20; // 飛び散る絵文字の数
+        /* ================= 演出リセット関数 ================= */
+        function clearEffects() {
+            activeTimers.forEach(clearInterval);
+            activeTimers = [];
+            if (activeAnimFrame) cancelAnimationFrame(activeAnimFrame);
+            effectsLayer.innerHTML = '';
+            document.body.className = '';
+            btnWrapper.className = ''; // ノリノリの動きもリセット
+        }
 
-            for (let i = 0; i < particleCount; i++) {
-                const span = document.createElement('span');
-                span.classList.add('firework-particle');
-                
-                span.textContent = particles[Math.floor(Math.random() * particles.length)];
-                
-                // クリックされた座標に配置
-                span.style.left = `${startX}px`;
-                span.style.top = `${startY}px`;
-
-                // 飛び散る方向をランダムに計算
-                const angle = Math.random() * Math.PI * 2; 
-                const distance = 80 + Math.random() * 180; 
-                const x = Math.cos(angle) * distance;
-                const y = Math.sin(angle) * distance;
-
-                span.style.setProperty('--x', `${x}px`);
-                span.style.setProperty('--y', `${y}px`);
-
-                document.body.appendChild(span);
-
-                span.addEventListener('animationend', () => {
-                    span.remove();
+        /* ================= 各感情の演出関数 ================= */
+        
+        // 😱 お化けフェードイン
+        function effectGhost() {
+            for (let i = 0; i < 5; i++) {
+                createElm('👻', 'sway', {
+                    left: `${Math.random() * 80 + 10}%`, top: `${Math.random() * 80 + 10}%`,
+                    fontSize: `${Math.random() * 3 + 2}rem`, animationDelay: `${Math.random()}s`
                 });
             }
         }
 
-        // 雨エフェクトを生成する関数
-        function createRain(startX, startY) {
-            const particles = ['💧', '💧', '💦']; // 雫
-            const particleCount = 15; // 降らせる数
+        // 🤔 はてなマーク
+        function effectThinking() {
+            const positions = [{x: '30%', y: '40%'}, {x: '65%', y: '35%'}, {x: '45%', y: '25%'}];
+            positions.forEach(pos => {
+                createElm('❓', 'sway', { left: pos.x, top: pos.y, fontSize: '3rem' });
+            });
+        }
 
-            for (let i = 0; i < particleCount; i++) {
-                const span = document.createElement('span');
-                span.classList.add('rain-particle');
-                
-                span.textContent = particles[Math.floor(Math.random() * particles.length)];
-                
-                // クリックされた座標の近く、画面上部から降らせる
-                const randomOffsetX = (Math.random() - 0.5) * 150; // クリック位置の横幅を散らす
-                span.style.left = `${startX + randomOffsetX}px`;
-                span.style.top = `${startY}px`; // クリック位置から降らせる
+        // 🤪😜 バウンド＆増殖
+        function effectBouncing(face) {
+            let faces = [];
+            function addFace(x, y) {
+                if (faces.length > 20) return; // 増えすぎ防止
+                const el = createElm(face, 'bouncing-face', { left: x+'px', top: y+'px' });
+                faces.push({ el, x, y, dx: (Math.random() > 0.5 ? 5 : -5), dy: (Math.random() > 0.5 ? 5 : -5) });
+            }
+            addFace(window.innerWidth / 2, window.innerHeight / 2);
 
-                document.body.appendChild(span);
-
-                span.addEventListener('animationend', () => {
-                    span.remove();
+            function loop() {
+                faces.forEach(f => {
+                    f.x += f.dx; f.y += f.dy;
+                    let hit = false;
+                    if (f.x <= 0 || f.x >= window.innerWidth - 60) { f.dx *= -1; hit = true; }
+                    if (f.y <= 0 || f.y >= window.innerHeight - 60) { f.dy *= -1; hit = true; }
+                    if (hit) addFace(f.x, f.y); // 壁に当たったら増殖
+                    f.el.style.left = `${f.x}px`; f.el.style.top = `${f.y}px`;
                 });
+                activeAnimFrame = requestAnimationFrame(loop);
+            }
+            loop();
+        }
+
+        // 🥰 ハートの雨
+        function effectHearts() {
+            const hearts = ['❤️', '💖', '💕', '💘'];
+            const timer = setInterval(() => {
+                createElm(hearts[Math.floor(Math.random()*hearts.length)], 'fall', {
+                    left: `${Math.random() * 100}%`, fontSize: `${Math.random() * 2 + 1}rem`,
+                    animationDuration: `${Math.random() * 2 + 2}s`
+                });
+            }, 100);
+            activeTimers.push(timer);
+        }
+
+        // 😂🤣 紙吹雪と顔の爆発
+        function effectConfetti() {
+            const items = ['😂', '🤣', '🎉', '🎊'];
+            const timer = setInterval(() => {
+                createFireworks(window.innerWidth/2, window.innerHeight/2, items, 20, 200);
+            }, 500);
+            activeTimers.push(timer);
+        }
+
+        // 🤓🧐 本や数式
+        function effectNerd() {
+            const items = ['📚', '👓', '📝', '∑', 'π', 'E=mc²'];
+            for (let i = 0; i < 10; i++) {
+                createElm(items[Math.floor(Math.random()*items.length)], 'float', {
+                    left: `${Math.random() * 80 + 10}%`, top: `${Math.random() * 80 + 10}%`,
+                    fontSize: '3rem', animationDelay: `${Math.random() * 2}s`
+                });
+            }
+        }
+
+        // 😡 巨大な炎と揺れ
+        function effectAngry() {
+            document.body.classList.add('shake-slow');
+            // 炎を画面いっぱいに配置
+            for (let i = 0; i < 6; i++) {
+                createElm('🔥', 'flame', { left: `${i * 20 - 10}%`, animationDelay: `${Math.random()}s` });
+            }
+        }
+
+        // 😣 小さな揺れと継続的な落石
+        function effectDistressed() { 
+            document.body.classList.add('shake-fast'); 
+            const timer = setInterval(() => {
+                createElm('🪨', 'fall-rock', {
+                    left: `${Math.random() * 100}%`, 
+                    fontSize: `${Math.random() * 3 + 2}rem`, 
+                    animationDuration: `${Math.random() * 0.8 + 1}s` // 落下速度
+                });
+            }, 400); // 少数の石を定期的に落とす
+            activeTimers.push(timer);
+        }
+
+        // 🙄🤫 お金
+        function effectMoney() {
+            const moneys = ['💸', '💵', '💴', '💶', '💷'];
+            createElm(moneys[Math.floor(Math.random()*moneys.length)], 'float', {
+                left: '45%', top: '20%', fontSize: '7rem'
+            });
+        }
+
+        // 🥳 継続花火
+        function effectParty() {
+            const timer = setInterval(() => {
+                createFireworks(Math.random() * window.innerWidth, Math.random() * window.innerHeight, ['🎆', '🎇', '✨'], 15, 100);
+            }, 600);
+            activeTimers.push(timer);
+        }
+
+        // 😭 雨
+        function effectRain() {
+            const timer = setInterval(() => {
+                createElm('💧', 'fall', {
+                    left: `${Math.random() * 100}%`, fontSize: '1.5rem', animationDuration: '0.8s'
+                });
+            }, 30);
+            activeTimers.push(timer);
+        }
+
+        // 😎 パチンコ激熱モード（ノリノリの顔文字）
+        function effectPachinko() {
+            document.body.classList.add('pachinko-shake', 'rainbow-bg');
+            btnWrapper.classList.add('groove'); // ←ラッパー（外枠）にノリノリのアニメーションを追加！
+
+            createElm('🪩', 'disco-ball', {});
+            const items = ['🌈', '✨', '💥', '🎇', '🎰', '7️⃣'];
+            const timer = setInterval(() => {
+                createFireworks(Math.random() * window.innerWidth, Math.random() * window.innerHeight, items, 30, 300);
+            }, 300);
+            activeTimers.push(timer);
+        }
+
+        /* ================= 汎用ヘルパー関数 ================= */
+        // 要素を生成する関数
+        function createElm(text, className, styles) {
+            const el = document.createElement('div');
+            el.textContent = text;
+            el.className = className;
+            Object.assign(el.style, styles);
+            effectsLayer.appendChild(el);
+            
+            // fallアニメーションの場合は終わったら消す
+            if(className === 'fall' || className === 'fall-rock') { el.addEventListener('animationend', () => el.remove()); }
+            return el;
+        }
+
+        // 花火（爆発）を生成する関数
+        function createFireworks(x, y, symbols, count = 15, maxDist = 150) {
+            for (let i = 0; i < count; i++) {
+                const el = document.createElement('div');
+                el.className = 'particle';
+                el.textContent = symbols[Math.floor(Math.random() * symbols.length)];
+                el.style.left = `${x}px`; el.style.top = `${y}px`;
+
+                const angle = Math.random() * Math.PI * 2;
+                const distance = 50 + Math.random() * maxDist;
+                el.style.setProperty('--x', `${Math.cos(angle) * distance}px`);
+                el.style.setProperty('--y', `${Math.sin(angle) * distance}px`);
+
+                effectsLayer.appendChild(el);
+                el.addEventListener('animationend', () => el.remove());
             }
         }
     </script>
