@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>感情が変わるボタン</title>
+    <title>感情に合わせて背景が変わるボタン</title>
     <style>
         /* 画面全体のスタイル */
         body {
@@ -13,8 +13,9 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            background-color: #2cece6; /* 画像1の鮮やかな水色 */
-            transition: background-color 0.4s ease; /* 背景変化を滑らかに */
+            /* 初期背景色（元の水色） */
+            background-color: #2cece6;
+            transition: background-color 0.4s ease; /* 背景色の変化を滑らかに */
             overflow: hidden;
             font-family: sans-serif;
             position: relative;
@@ -28,16 +29,35 @@
             cursor: pointer;
             outline: none;
             user-select: none;
-            transition: transform 0.1s ease;
-            z-index: 10;
+            position: relative;
+            z-index: 20; /* 最前面に配置 */
+            padding: 10px;
+            
+            /* 初期状態のボタンのような縁取りと影（静止時） */
+            border-radius: 50%;
+            box-shadow: 0 5px 0 #bb9300, 0 10px 20px rgba(0,0,0,0.3);
+            background-color: rgba(255, 255, 255, 0.1);
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
         }
 
-        /* ボタンを押したときの軽いへこみ演出 */
+        /* 顔文字自体のスタイル（絵文字を中央に） */
+        .emoji-btn .emoji {
+            display: inline-block;
+            transform: translateY(0px); /* 初期位置 */
+        }
+
+        /* ボタンを押したときの表現 */
         .emoji-btn:active {
-            transform: scale(0.9);
+            transform: translateY(5px); /* 全体が沈む */
+            box-shadow: 0 1px 0 #bb9300, 0 3px 10px rgba(0,0,0,0.2); /* 影が小さくなる */
+        }
+        .emoji-btn:active .emoji {
+            transform: translateY(3px); /* 絵文字自体の位置も微調整 */
         }
 
-        /* 飛び出す花火（絵文字）のスタイル */
+        /* === 背景エフェクト（花火、雨） === */
+
+        /* 花火エフェクト（絵文字）のスタイル */
         .firework-particle {
             position: absolute;
             font-size: 2.5rem;
@@ -57,68 +77,120 @@
                 opacity: 0;
             }
         }
+
+        /* 雨エフェクトのスタイル */
+        .rain-particle {
+            position: absolute;
+            font-size: 1.5rem;
+            pointer-events: none;
+            z-index: 5;
+            animation: fall 1s linear forwards;
+        }
+
+        /* 雨が上から下に降って消えるアニメーション */
+        @keyframes fall {
+            0% {
+                transform: translate(-50%, -100%) scale(1);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            100% {
+                transform: translate(-50%, 100vh) scale(0.8);
+                opacity: 0;
+            }
+        }
+
     </style>
 </head>
 <body>
 
-    <button id="emojiBtn" class="emoji-btn">☺️</button>
+    <button id="emojiBtn" class="emoji-btn">
+        <span class="emoji">☺️</span>
+    </button>
 
     <script>
         const btn = document.getElementById('emojiBtn');
+        const emojiSpan = btn.querySelector('.emoji');
         
-        /* クリックするたびに切り替わる「背景色」と「表情」のリスト。
-           画像1（水色）と画像2（赤）を交互に行き来するように設定しています。
-        */
+        /* 表情ごとの背景エフェクトを定義 */
         const states = [
-            { bg: '#2cece6', emoji: '☺️' }, // 初期状態（水色）
-            { bg: '#ff0000', emoji: '🤩' }, // クリック後（赤）
-            { bg: '#ff00ee', emoji: '🥳' }, // おまけ：ピンク
-            { bg: '#00ff66', emoji: '😎' }  // おまけ：緑
+            { bg: '#2cece6', emoji: '☺️', effect: 'fireworks' }, // 初期：水色、微笑み、花火
+            { bg: '#ff3333', emoji: '🥳', effect: 'fireworks' }, // 祝賀：赤、お祝い、花火
+            { bg: '#556688', emoji: '😭', effect: 'rain' },     // 泣く：灰色、泣、雨
+            { bg: '#ffeeaa', emoji: '😎', effect: 'none' }     // おまけ：黄、サングラス、なし
         ];
         
-        let currentState = 0;
+        let currentStateIndex = 0;
 
         btn.addEventListener('click', (e) => {
-            // 1. 次の状態へ進める（最後の次は最初に戻る）
-            currentState = (currentState + 1) % states.length;
+            // 1. 次の状態へ進める
+            currentStateIndex = (currentStateIndex + 1) % states.length;
+            const currentState = states[currentStateIndex];
             
             // 2. 背景色とボタンの絵文字を更新
-            document.body.style.backgroundColor = states[currentState].bg;
-            btn.textContent = states[currentState].emoji;
+            document.body.style.backgroundColor = currentState.bg;
+            emojiSpan.textContent = currentState.emoji;
 
-            // 3. クリックした位置から花火を打ち上げる
-            createFireworks(e.clientX, e.clientY);
+            // 3. クリックした位置から対応するエフェクトを生成
+            if (currentState.effect === 'fireworks') {
+                createFireworks(e.clientX, e.clientY);
+            } else if (currentState.effect === 'rain') {
+                createRain(e.clientX, e.clientY);
+            }
         });
 
         // 花火エフェクトを生成する関数
         function createFireworks(startX, startY) {
             const particles = ['🎆', '✨', '🎇', '💥', '🎉'];
-            const particleCount = 15; // 1回に飛び出す絵文字の数
+            const particleCount = 20; // 飛び散る絵文字の数
 
             for (let i = 0; i < particleCount; i++) {
                 const span = document.createElement('span');
                 span.classList.add('firework-particle');
                 
-                // ランダムに花火の絵文字をチョイス
                 span.textContent = particles[Math.floor(Math.random() * particles.length)];
                 
                 // クリックされた座標に配置
                 span.style.left = `${startX}px`;
                 span.style.top = `${startY}px`;
 
-                // 飛び散る方向（角度と距離）をランダムに計算
-                const angle = Math.random() * Math.PI * 2; // 360度
-                const distance = 60 + Math.random() * 140; // 飛び散る距離
+                // 飛び散る方向をランダムに計算
+                const angle = Math.random() * Math.PI * 2; 
+                const distance = 80 + Math.random() * 180; 
                 const x = Math.cos(angle) * distance;
                 const y = Math.sin(angle) * distance;
 
-                // CSSの変数（カスタムプロパティ）を使ってアニメーション先に数値を渡す
                 span.style.setProperty('--x', `${x}px`);
                 span.style.setProperty('--y', `${y}px`);
 
                 document.body.appendChild(span);
 
-                // アニメーション（0.8秒）が終わったら自動で要素を削除
+                span.addEventListener('animationend', () => {
+                    span.remove();
+                });
+            }
+        }
+
+        // 雨エフェクトを生成する関数
+        function createRain(startX, startY) {
+            const particles = ['💧', '💧', '💦']; // 雫
+            const particleCount = 15; // 降らせる数
+
+            for (let i = 0; i < particleCount; i++) {
+                const span = document.createElement('span');
+                span.classList.add('rain-particle');
+                
+                span.textContent = particles[Math.floor(Math.random() * particles.length)];
+                
+                // クリックされた座標の近く、画面上部から降らせる
+                const randomOffsetX = (Math.random() - 0.5) * 150; // クリック位置の横幅を散らす
+                span.style.left = `${startX + randomOffsetX}px`;
+                span.style.top = `${startY}px`; // クリック位置から降らせる
+
+                document.body.appendChild(span);
+
                 span.addEventListener('animationend', () => {
                     span.remove();
                 });
